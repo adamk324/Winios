@@ -16,8 +16,15 @@ struct ContentView: View {
             diagnostics.tag(2).tabItem { Label("Graphics", systemImage: "waveform.path.ecg") }
         }
         .tint(.indigo)
-        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .folder], allowsMultipleSelection: true) { result in
-            if case .success(let urls) = result { model.importItems(from: urls) }
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: importableContentTypes, allowsMultipleSelection: true) { result in
+            switch result {
+            case .success(let urls):
+                model.importItems(from: urls)
+            case .failure(let error):
+                let cocoaError = error as NSError
+                guard cocoaError.domain != NSCocoaErrorDomain || cocoaError.code != NSUserCancelledError else { return }
+                model.importError = "Winios could not read the selected file: \(error.localizedDescription)"
+            }
         }
         .alert(model.importError == nil ? "Added to library" : "Import failed", isPresented: Binding(
             get: { model.importError != nil || model.importNotice != nil },
@@ -32,6 +39,15 @@ struct ContentView: View {
             selection = 0
             model.importItems(from: [url])
         }
+    }
+
+    private var importableContentTypes: [UTType] {
+        [
+            UTType("com.microsoft.windows-executable") ?? UTType(filenameExtension: "exe") ?? .data,
+            UTType("com.adamk324.winios.msi") ?? UTType(filenameExtension: "msi") ?? .data,
+            UTType("public.zip-archive") ?? UTType(filenameExtension: "zip") ?? .archive,
+            .folder
+        ]
     }
 
     private var library: some View {
