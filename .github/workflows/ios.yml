@@ -28,9 +28,14 @@ jobs:
         run: xcodebuild -project Winios.xcodeproj -scheme Winios -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/device-build.log
       - name: Run simulator tests
         run: |
+          set -o pipefail
           SIMULATOR_ID="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ && /Shutdown|Booted/ { print $2; exit }')"
           test -n "$SIMULATOR_ID"
           xcodebuild -project Winios.xcodeproj -scheme Winios -destination "id=$SIMULATOR_ID" -derivedDataPath build/DerivedData -resultBundlePath build/WiniosTests.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee build/test.log
+          if grep -qF '** TEST FAILED **' build/test.log; then
+            echo 'xcodebuild reported a failed test run.'
+            exit 1
+          fi
       - name: Upload build results
         if: always()
         uses: actions/upload-artifact@v4
