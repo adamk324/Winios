@@ -80,7 +80,7 @@ The current practical gate is therefore a device and execution-model feasibility
 
 ## Implemented milestone and validation status
 
-Milestone 1 created the native project, import/library, settings, memory/device diagnostics, basic unit tests, and macOS CI. Milestone 2 adds a host Metal test-pattern surface, frame presentation, FPS reporting, drawable-size scaling per profile, and pause behavior while the Graphics tab is inactive. CI passed simulator and generic-device builds and simulator unit tests. Physical-device behavior, older-device performance, thermal impact, and graphics-memory measurements remain unverified.
+Milestone 1 created the native project, import/library, settings, memory/device diagnostics, basic unit tests, and macOS CI. Milestone 2 adds a host Metal test-pattern surface, frame presentation, FPS reporting, drawable-size scaling per profile, and pause behavior while the Graphics tab is inactive. Milestone 3 groundwork now reads bounded PE/COFF headers for imported EXEs, reports recognized machine types, and tests malformed/truncated headers without executing files. CI passed the previous simulator and generic-device builds and simulator unit tests; the latest metadata-only run is pending. Physical-device behavior, older-device performance, thermal impact, and graphics-memory measurements remain unverified.
 
 ## References
 

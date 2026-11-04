@@ -37,6 +37,7 @@ struct ContentView: View {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(app.name).font(.headline)
                                         Text(app.filename).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                                        Text(app.kind ?? "Imported file").font(.caption2).foregroundColor(.secondary).lineLimit(1)
                                     }
                                     Spacer()
                                     Text("Imported").font(.caption2).foregroundColor(.secondary)

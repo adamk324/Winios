@@ -19,6 +19,7 @@ The GitHub Actions workflow performs simulator and generic-device builds and run
 ## Current functionality
 
 - Imports EXE, MSI, ZIP, and folder selections using the system file importer.
+- Reads bounded DOS/PE headers for imported EXE files and displays the machine architecture when recognized; no executable content is loaded or run.
 - Copies selections into the app's private Documents directory and persists a library index.
 - Removes imported items from the library and local storage.
 - Saves Low-End, Balanced, or Performance profile selection. These tune only the Metal preview's resolution scale and frame-rate cap; they do not tune a Windows runtime.
