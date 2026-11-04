@@ -9,6 +9,8 @@ struct ImportedApplication: Identifiable, Codable, Equatable {
     var filename: String
     var relativePath: String
     var importedAt: Date
+    var architecture: String? = nil
+    var kind: String? = nil
 
     var fileURL: URL {
         Self.importsDirectory.appendingPathComponent(relativePath)
@@ -35,6 +37,7 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(profile.rawValue, forKey: "performanceProfile") }
     }
     @Published var importError: String?
+    @Published var importNotice: String?
 
     private let indexURL = ImportedApplication.importsDirectory.appendingPathComponent("library.json")
 
@@ -53,24 +56,22 @@ final class AppModel: ObservableObject {
     func importItems(from urls: [URL]) {
         do {
             try FileManager.default.createDirectory(at: ImportedApplication.importsDirectory, withIntermediateDirectories: true)
+            var importedNames: [String] = []
             for source in urls {
                 let scoped = source.startAccessingSecurityScopedResource()
                 defer { if scoped { source.stopAccessingSecurityScopedResource() } }
-
-                let ext = source.pathExtension.lowercased()
-                guard ["exe", "msi", "zip"].contains(ext) || (try source.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true) else {
-                    throw ImportFailure.unsupported(source.lastPathComponent)
-                }
-                let id = UUID()
-                let destinationName = "\(id.uuidString)-\(source.lastPathComponent)"
-                let destination = ImportedApplication.importsDirectory.appendingPathComponent(destinationName)
-                try FileManager.default.copyItem(at: source, to: destination)
-                let item = ImportedApplication(id: id, name: source.deletingPathExtension().lastPathComponent, filename: source.lastPathComponent, relativePath: destinationName, importedAt: Date())
+                let item = try importItem(from: source)
                 applications.insert(item, at: 0)
+                importedNames.append(item.filename)
             }
             try saveIndex()
             importError = nil
+            if !importedNames.isEmpty {
+                let names = importedNames.joined(separator: ", ")
+                importNotice = "Added \(names) to your Winios library. Windows apps cannot run in this build yet."
+            }
         } catch {
+            importNotice = nil
             importError = error.localizedDescription
         }
     }
@@ -86,6 +87,37 @@ final class AppModel: ObservableObject {
         applications = saved.filter { FileManager.default.fileExists(atPath: $0.fileURL.path) }
     }
 
+    private func importItem(from source: URL) throws -> ImportedApplication {
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+        var result: Result<ImportedApplication, Error>?
+        var coordinationError: NSError?
+        coordinator.coordinate(readingItemAt: source, options: [], error: &coordinationError) { coordinatedURL in
+            result = Result {
+                let ext = coordinatedURL.pathExtension.lowercased()
+                let isDirectory = try coordinatedURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true
+                guard ["exe", "msi", "zip"].contains(ext) || isDirectory else {
+                    throw ImportFailure.unsupported(coordinatedURL.lastPathComponent)
+                }
+                let architecture = ext == "exe" ? try? PEFileInspector.architecture(of: coordinatedURL) : nil
+                let kind: String
+                if isDirectory { kind = "Application folder" }
+                else if ext == "exe" { kind = architecture.map { "Windows executable · \($0)" } ?? "Windows executable · unrecognized PE" }
+                else if ext == "msi" { kind = "Windows installer" }
+                else { kind = "ZIP archive" }
+
+                let id = UUID()
+                let destinationName = "\(id.uuidString)-\(coordinatedURL.lastPathComponent)"
+                let destination = ImportedApplication.importsDirectory.appendingPathComponent(destinationName)
+                try FileManager.default.copyItem(at: coordinatedURL, to: destination)
+                return ImportedApplication(id: id, name: coordinatedURL.deletingPathExtension().lastPathComponent, filename: coordinatedURL.lastPathComponent, relativePath: destinationName, importedAt: Date(), architecture: architecture, kind: kind)
+            }
+        }
+
+        if let coordinationError { throw coordinationError }
+        guard let result else { throw ImportFailure.coordinationFailed }
+        return try result.get()
+    }
+
     private func saveIndex() throws {
         let data = try JSONEncoder().encode(applications)
         try data.write(to: indexURL, options: .atomic)
@@ -94,8 +126,10 @@ final class AppModel: ObservableObject {
 
 enum ImportFailure: LocalizedError {
     case unsupported(String)
+    case coordinationFailed
     var errorDescription: String? {
         if case .unsupported(let name) = self { return "Unsupported file type: \(name). Choose an EXE, MSI, ZIP, or folder." }
+        if case .coordinationFailed = self { return "The selected item could not be accessed safely." }
         return nil
     }
 }

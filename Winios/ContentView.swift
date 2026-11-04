@@ -1,8 +1,11 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
+    @StateObject private var graphicsMetrics = MetalPreviewMetrics()
+    @State private var selectedApplication: ImportedApplication?
     @State private var showingImporter = false
     @State private var selection = 0
 
@@ -10,15 +13,41 @@ struct ContentView: View {
         TabView(selection: $selection) {
             library.tag(0).tabItem { Label("Library", systemImage: "square.grid.2x2") }
             settings.tag(1).tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
-            diagnostics.tag(2).tabItem { Label("Diagnostics", systemImage: "waveform.path.ecg") }
+            diagnostics.tag(2).tabItem { Label("Graphics", systemImage: "waveform.path.ecg") }
         }
         .tint(.indigo)
-        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .folder], allowsMultipleSelection: true) { result in
-            if case .success(let urls) = result { model.importItems(from: urls) }
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: importableContentTypes, allowsMultipleSelection: true) { result in
+            switch result {
+            case .success(let urls):
+                model.importItems(from: urls)
+            case .failure(let error):
+                let cocoaError = error as NSError
+                guard cocoaError.domain != NSCocoaErrorDomain || cocoaError.code != NSUserCancelledError else { return }
+                model.importError = "Winios could not read the selected file: \(error.localizedDescription)"
+            }
         }
-        .alert("Import failed", isPresented: Binding(get: { model.importError != nil }, set: { if !$0 { model.importError = nil } })) {
-            Button("OK", role: .cancel) { model.importError = nil }
-        } message: { Text(model.importError ?? "") }
+        .alert(model.importError == nil ? "Added to library" : "Import failed", isPresented: Binding(
+            get: { model.importError != nil || model.importNotice != nil },
+            set: { if !$0 { model.importError = nil; model.importNotice = nil } }
+        )) {
+            Button("OK", role: .cancel) { model.importError = nil; model.importNotice = nil }
+        } message: { Text(model.importError ?? model.importNotice ?? "") }
+        .sheet(item: $selectedApplication) { application in
+            ApplicationDetailsView(application: application)
+        }
+        .onOpenURL { url in
+            selection = 0
+            model.importItems(from: [url])
+        }
+    }
+
+    private var importableContentTypes: [UTType] {
+        [
+            UTType("com.microsoft.windows-executable") ?? UTType(filenameExtension: "exe") ?? .data,
+            UTType("com.adamk324.winios.msi") ?? UTType(filenameExtension: "msi") ?? .data,
+            UTType("public.zip-archive") ?? UTType(filenameExtension: "zip") ?? .archive,
+            .folder
+        ]
     }
 
     private var library: some View {
@@ -30,16 +59,20 @@ struct ContentView: View {
                     List {
                         Section {
                             ForEach(model.applications) { app in
-                                HStack(spacing: 14) {
-                                    Image(systemName: app.filename.lowercased().hasSuffix(".exe") ? "app.dashed" : "doc.zipper")
-                                        .font(.title2).foregroundColor(.indigo).frame(width: 38, height: 38)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(app.name).font(.headline)
-                                        Text(app.filename).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                                Button { selectedApplication = app } label: {
+                                    HStack(spacing: 14) {
+                                        Image(systemName: app.filename.lowercased().hasSuffix(".exe") ? "app.dashed" : "doc.zipper")
+                                            .font(.title2).foregroundColor(.indigo).frame(width: 38, height: 38)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(app.name).font(.headline)
+                                            Text(app.filename).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                                            Text(app.kind ?? "Imported file").font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right").font(.caption).foregroundColor(Color(uiColor: .tertiaryLabel))
                                     }
-                                    Spacer()
-                                    Text("Imported").font(.caption2).foregroundColor(.secondary)
                                 }
+                                .buttonStyle(.plain)
                                 .padding(.vertical, 4)
                                 .swipeActions { Button("Remove", role: .destructive) { model.remove(app) } }
                             }
@@ -77,7 +110,20 @@ struct ContentView: View {
             Form {
                 Section("Device") {
                     LabeledContentCompat(label: "System", value: UIDevice.current.systemName + " " + UIDevice.current.systemVersion)
+                    LabeledContentCompat(label: "Winios", value: "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"))")
                     LabeledContentCompat(label: "Metal device", value: info.metalDevice)
+                }
+                Section("Metal presentation preview") {
+                    if let error = graphicsMetrics.error {
+                        Text(error).font(.footnote).foregroundColor(.red)
+                    } else {
+                        MetalPreview(profile: model.profile, isActive: selection == 2, metrics: graphicsMetrics)
+                            .frame(height: 170)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        LabeledContentCompat(label: "Measured frame rate", value: String(format: "%.0f FPS", graphicsMetrics.framesPerSecond))
+                        LabeledContentCompat(label: "Drawable memory estimate", value: String(format: "%.1f MB", graphicsMetrics.drawableMemoryMB))
+                        Text("Host Metal test pattern only. This surface does not display Windows application graphics.").font(.footnote).foregroundColor(.secondary)
+                    }
                 }
                 Section("Memory") {
                     LabeledContentCompat(label: "Current process", value: String(format: "%.1f MB", info.currentMemoryMB))
@@ -88,7 +134,7 @@ struct ContentView: View {
                     LabeledContentCompat(label: "Profile", value: model.profile.rawValue)
                     LabeledContentCompat(label: "CPU translation / JIT", value: info.jitStatus)
                     LabeledContentCompat(label: "Wine", value: "Not integrated")
-                    LabeledContentCompat(label: "Graphics backend", value: "Metal device detection only; no guest rendering")
+                    LabeledContentCompat(label: "Guest graphics", value: "Not implemented")
                 }
             }.navigationTitle("Diagnostics")
         }.navigationViewStyle(.stack)
@@ -96,9 +142,9 @@ struct ContentView: View {
 
     private var profileDescription: String {
         switch model.profile {
-        case .lowEnd: return "Conservative profile selection for older devices. It does not yet tune a runtime."
-        case .balanced: return "Balanced profile selection. Runtime resource limits are not implemented yet."
-        case .performance: return "Higher-performance profile selection. Runtime resource limits are not implemented yet."
+        case .lowEnd: return "Caps the Metal preview at 30 FPS and lowers its drawable resolution. No Windows runtime is present."
+        case .balanced: return "Uses a 30 FPS preview cap with moderate drawable scaling. No Windows runtime is present."
+        case .performance: return "Allows a 60 FPS preview cap at native drawable resolution. No Windows runtime is present."
         }
     }
 }
@@ -122,5 +168,54 @@ private struct LabeledContentCompat: View {
     let label: String
     let value: String
     var body: some View { HStack(alignment: .top) { Text(label); Spacer(minLength: 12); Text(value).foregroundColor(.secondary).multilineTextAlignment(.trailing) } }
+}
+
+private struct ApplicationDetailsView: View {
+    @Environment(\.presentationMode) private var presentationMode
+    let application: ImportedApplication
+    @State private var copiedDiagnostics = false
+
+    private var isExecutable: Bool { application.filename.lowercased().hasSuffix(".exe") }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("File") {
+                    LabeledContentCompat(label: "Name", value: application.name)
+                    LabeledContentCompat(label: "File", value: application.filename)
+                    LabeledContentCompat(label: "Type", value: application.kind ?? "Imported file")
+                    if isExecutable {
+                        LabeledContentCompat(label: "PE architecture", value: application.architecture ?? "Unknown or invalid PE header")
+                    }
+                }
+                Section("Launch status") {
+                    Label(isExecutable ? "Windows runtime unavailable" : "This item cannot be launched yet", systemImage: "exclamationmark.circle")
+                        .foregroundColor(.orange)
+                    Text(isExecutable
+                         ? "Winios has not integrated Wine or a Windows executable loader. This EXE was inspected for its PE architecture, but no launch was attempted."
+                         : "Winios currently imports and stores files only. MSI installation, ZIP extraction, and Windows application execution are not implemented.")
+                        .font(.footnote).foregroundColor(.secondary)
+                }
+                Section {
+                    Button(copiedDiagnostics ? "Diagnostic details copied" : "Copy diagnostic details") {
+                        UIPasteboard.general.string = diagnosticText
+                        copiedDiagnostics = true
+                    }
+                }
+            }
+            .navigationTitle(application.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { presentationMode.wrappedValue.dismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private var diagnosticText: String {
+        "Name: \(application.name)\nFile: \(application.filename)\nType: \(application.kind ?? "Imported file")\nArchitecture: \(application.architecture ?? "Not detected")\nRuntime: Not integrated"
+    }
 }
 
