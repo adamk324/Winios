@@ -36,6 +36,42 @@ jobs:
             echo 'xcodebuild reported a failed test run.'
             exit 1
           fi
+      - name: Build unsigned iOS 15 release app
+        run: |
+          set -o pipefail
+          xcodebuild -project Winios.xcodeproj -scheme Winios -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/ipa-build.log
+      - name: Package and verify test.ipa
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/Winios.app"
+          test -d "$APP_PATH"
+          MINIMUM_OS="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP_PATH/Info.plist")"
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+          EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Info.plist")"
+          test "$MINIMUM_OS" = "15.0"
+          test "$BUNDLE_ID" = "com.adamk324.winios"
+          test -f "$APP_PATH/$EXECUTABLE"
+          ARCHITECTURES="$(/usr/bin/lipo -archs "$APP_PATH/$EXECUTABLE")"
+          [[ " $ARCHITECTURES " == *" arm64 "* ]]
+          test ! -e "$APP_PATH/embedded.mobileprovision"
+          mkdir -p build/ipa-staging/Payload
+          /usr/bin/ditto "$APP_PATH" build/ipa-staging/Payload/Winios.app
+          (cd build/ipa-staging && /usr/bin/zip -qry ../test.ipa Payload)
+          /usr/bin/unzip -tq build/test.ipa
+          echo "IPA: build/test.ipa"
+          echo "MinimumOSVersion: $MINIMUM_OS"
+          echo "Bundle ID: $BUNDLE_ID"
+          echo "Architectures: $ARCHITECTURES"
+          echo "Signing: unsigned; no Apple certificate or provisioning profile"
+      - name: Upload TrollStore test IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: winios-${{ github.sha }}-ios15-test-ipa-unsigned
+          path: |
+            build/test.ipa
+            build/ipa-build.log
+          if-no-files-found: error
       - name: Upload build results
         if: always()
         uses: actions/upload-artifact@v4

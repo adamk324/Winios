@@ -14,7 +14,9 @@ xcodebuild -project Winios.xcodeproj -scheme Winios -destination 'generic/platfo
 xcodebuild -project Winios.xcodeproj -scheme Winios -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
 ```
 
-The GitHub Actions workflow performs simulator and generic-device builds and runs the unit tests on a macOS runner. An unsigned simulator build is not an installable iPhone IPA. Physical-device, memory-pressure, graphics, and compatibility tests have not yet been performed.
+The GitHub Actions workflow performs simulator and generic-device builds, runs unit tests, and packages an unsigned Release `test.ipa` for iOS 15. The workflow checks its minimum OS, bundle ID, ARM64 architecture, and IPA ZIP integrity. Download the `winios-<commit>-ios15-test-ipa-unsigned` artifact from a successful Actions run and install it with TrollStore. It contains no Apple certificate or provisioning profile; no signing secrets are used.
+
+The app currently does not request or use JIT and does not include Wine or a Windows runtime. TrollStore/JIT availability on a device does not add those features. Physical-device, memory-pressure, graphics, and Windows compatibility tests have not yet been performed.
 
 ## Current functionality
 
