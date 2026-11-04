@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
     @StateObject private var graphicsMetrics = MetalPreviewMetrics()
+    @State private var selectedApplication: ImportedApplication?
     @State private var showingImporter = false
     @State private var selection = 0
 
@@ -20,6 +22,9 @@ struct ContentView: View {
         .alert("Import failed", isPresented: Binding(get: { model.importError != nil }, set: { if !$0 { model.importError = nil } })) {
             Button("OK", role: .cancel) { model.importError = nil }
         } message: { Text(model.importError ?? "") }
+        .sheet(item: $selectedApplication) { application in
+            ApplicationDetailsView(application: application)
+        }
     }
 
     private var library: some View {
@@ -31,17 +36,20 @@ struct ContentView: View {
                     List {
                         Section {
                             ForEach(model.applications) { app in
-                                HStack(spacing: 14) {
-                                    Image(systemName: app.filename.lowercased().hasSuffix(".exe") ? "app.dashed" : "doc.zipper")
-                                        .font(.title2).foregroundColor(.indigo).frame(width: 38, height: 38)
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(app.name).font(.headline)
-                                        Text(app.filename).font(.caption).foregroundColor(.secondary).lineLimit(1)
-                                        Text(app.kind ?? "Imported file").font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                                Button { selectedApplication = app } label: {
+                                    HStack(spacing: 14) {
+                                        Image(systemName: app.filename.lowercased().hasSuffix(".exe") ? "app.dashed" : "doc.zipper")
+                                            .font(.title2).foregroundColor(.indigo).frame(width: 38, height: 38)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(app.name).font(.headline)
+                                            Text(app.filename).font(.caption).foregroundColor(.secondary).lineLimit(1)
+                                            Text(app.kind ?? "Imported file").font(.caption2).foregroundColor(.secondary).lineLimit(1)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right").font(.caption).foregroundColor(Color(uiColor: .tertiaryLabel))
                                     }
-                                    Spacer()
-                                    Text("Imported").font(.caption2).foregroundColor(.secondary)
                                 }
+                                .buttonStyle(.plain)
                                 .padding(.vertical, 4)
                                 .swipeActions { Button("Remove", role: .destructive) { model.remove(app) } }
                             }
@@ -79,6 +87,7 @@ struct ContentView: View {
             Form {
                 Section("Device") {
                     LabeledContentCompat(label: "System", value: UIDevice.current.systemName + " " + UIDevice.current.systemVersion)
+                    LabeledContentCompat(label: "Winios", value: "\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"))")
                     LabeledContentCompat(label: "Metal device", value: info.metalDevice)
                 }
                 Section("Metal presentation preview") {
@@ -136,5 +145,54 @@ private struct LabeledContentCompat: View {
     let label: String
     let value: String
     var body: some View { HStack(alignment: .top) { Text(label); Spacer(minLength: 12); Text(value).foregroundColor(.secondary).multilineTextAlignment(.trailing) } }
+}
+
+private struct ApplicationDetailsView: View {
+    @Environment(\.presentationMode) private var presentationMode
+    let application: ImportedApplication
+    @State private var copiedDiagnostics = false
+
+    private var isExecutable: Bool { application.filename.lowercased().hasSuffix(".exe") }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("File") {
+                    LabeledContentCompat(label: "Name", value: application.name)
+                    LabeledContentCompat(label: "File", value: application.filename)
+                    LabeledContentCompat(label: "Type", value: application.kind ?? "Imported file")
+                    if isExecutable {
+                        LabeledContentCompat(label: "PE architecture", value: application.architecture ?? "Unknown or invalid PE header")
+                    }
+                }
+                Section("Launch status") {
+                    Label(isExecutable ? "Windows runtime unavailable" : "This item cannot be launched yet", systemImage: "exclamationmark.circle")
+                        .foregroundColor(.orange)
+                    Text(isExecutable
+                         ? "Winios has not integrated Wine or a Windows executable loader. This EXE was inspected for its PE architecture, but no launch was attempted."
+                         : "Winios currently imports and stores files only. MSI installation, ZIP extraction, and Windows application execution are not implemented.")
+                        .font(.footnote).foregroundColor(.secondary)
+                }
+                Section {
+                    Button(copiedDiagnostics ? "Diagnostic details copied" : "Copy diagnostic details") {
+                        UIPasteboard.general.string = diagnosticText
+                        copiedDiagnostics = true
+                    }
+                }
+            }
+            .navigationTitle(application.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { presentationMode.wrappedValue.dismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private var diagnosticText: String {
+        "Name: \(application.name)\nFile: \(application.filename)\nType: \(application.kind ?? "Imported file")\nArchitecture: \(application.architecture ?? "Not detected")\nRuntime: Not integrated"
+    }
 }
 
