@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
+    @StateObject private var graphicsMetrics = MetalPreviewMetrics()
     @State private var showingImporter = false
     @State private var selection = 0
 
@@ -10,7 +11,7 @@ struct ContentView: View {
         TabView(selection: $selection) {
             library.tag(0).tabItem { Label("Library", systemImage: "square.grid.2x2") }
             settings.tag(1).tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
-            diagnostics.tag(2).tabItem { Label("Diagnostics", systemImage: "waveform.path.ecg") }
+            diagnostics.tag(2).tabItem { Label("Graphics", systemImage: "waveform.path.ecg") }
         }
         .tint(.indigo)
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .folder], allowsMultipleSelection: true) { result in
@@ -79,6 +80,18 @@ struct ContentView: View {
                     LabeledContentCompat(label: "System", value: UIDevice.current.systemName + " " + UIDevice.current.systemVersion)
                     LabeledContentCompat(label: "Metal device", value: info.metalDevice)
                 }
+                Section("Metal presentation preview") {
+                    if let error = graphicsMetrics.error {
+                        Text(error).font(.footnote).foregroundColor(.red)
+                    } else {
+                        MetalPreview(profile: model.profile, isActive: selection == 2, metrics: graphicsMetrics)
+                            .frame(height: 170)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        LabeledContentCompat(label: "Measured frame rate", value: String(format: "%.0f FPS", graphicsMetrics.framesPerSecond))
+                        LabeledContentCompat(label: "Drawable memory estimate", value: String(format: "%.1f MB", graphicsMetrics.drawableMemoryMB))
+                        Text("Host Metal test pattern only. This surface does not display Windows application graphics.").font(.footnote).foregroundColor(.secondary)
+                    }
+                }
                 Section("Memory") {
                     LabeledContentCompat(label: "Current process", value: String(format: "%.1f MB", info.currentMemoryMB))
                     LabeledContentCompat(label: "Peak observed", value: String(format: "%.1f MB", info.peakMemoryMB))
@@ -88,7 +101,7 @@ struct ContentView: View {
                     LabeledContentCompat(label: "Profile", value: model.profile.rawValue)
                     LabeledContentCompat(label: "CPU translation / JIT", value: info.jitStatus)
                     LabeledContentCompat(label: "Wine", value: "Not integrated")
-                    LabeledContentCompat(label: "Graphics backend", value: "Metal device detection only; no guest rendering")
+                    LabeledContentCompat(label: "Guest graphics", value: "Not implemented")
                 }
             }.navigationTitle("Diagnostics")
         }.navigationViewStyle(.stack)
@@ -96,9 +109,9 @@ struct ContentView: View {
 
     private var profileDescription: String {
         switch model.profile {
-        case .lowEnd: return "Conservative profile selection for older devices. It does not yet tune a runtime."
-        case .balanced: return "Balanced profile selection. Runtime resource limits are not implemented yet."
-        case .performance: return "Higher-performance profile selection. Runtime resource limits are not implemented yet."
+        case .lowEnd: return "Caps the Metal preview at 30 FPS and lowers its drawable resolution. No Windows runtime is present."
+        case .balanced: return "Uses a 30 FPS preview cap with moderate drawable scaling. No Windows runtime is present."
+        case .performance: return "Allows a 60 FPS preview cap at native drawable resolution. No Windows runtime is present."
         }
     }
 }

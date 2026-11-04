@@ -24,7 +24,7 @@ The present app therefore provides file organization and truthful diagnostics on
 |---|---|---|
 | SwiftUI/UIKit shell | Viable | Implemented in this milestone; macOS CI build pending. |
 | Document picker | Viable | User-selected sandbox import, including folders on iOS 13+; used here for explicit file/folder import. |
-| Metal | Viable for host rendering | Current app only detects the default Metal device. No renderer or guest translation exists. |
+| Metal | Viable for host rendering | Implemented a host test-pattern pipeline, presentation surface, FPS measurement, profile-based drawable scaling, and preferred frame rate. No guest renderer or translation exists. |
 | Wine | Major porting work; not directly usable as a desktop build | Wine targets POSIX systems and depends on Unix services. iOS is Darwin but has materially different process, executable-loading, and sandbox rules. No upstream iOS target was verified. |
 | FEX-Emu | Not directly compatible as published | Upstream project describes itself as an x86/x86-64 emulator for ARM64 Linux and relies on Linux/rootfs behavior. An iOS port would need substantial OS/service/JIT changes. |
 | Native Windows ARM64 PE | Not a drop-in path | The CPU ISA may match, but iOS cannot simply load and execute arbitrary PE modules. Wine API, loader, ABI, memory, and OS-service work remains. |
@@ -66,7 +66,7 @@ Keep host presentation separate from guest API compatibility. Start with an iOS 
 
 ## Implemented milestone and validation status
 
-Milestone 1 creates a native project, import/library, settings, memory/device diagnostics, basic unit tests, and macOS CI. At the time of this report, only Windows is available locally, so Xcode compilation, simulator tests, and physical-device tests remain pending. CI is configured to build simulator and generic iOS targets and run XCTest on macOS.
+Milestone 1 created the native project, import/library, settings, memory/device diagnostics, basic unit tests, and macOS CI. Milestone 2 adds a host Metal test-pattern surface, frame presentation, FPS reporting, drawable-size scaling per profile, and pause behavior while the Graphics tab is inactive. CI passed simulator and generic-device builds and simulator unit tests. Physical-device behavior, older-device performance, thermal impact, and graphics-memory measurements remain unverified.
 
 ## References
 
