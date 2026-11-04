@@ -30,7 +30,7 @@ The drawable memory estimate represents one 32-bit color surface. It does not me
 
 ## Feasibility and proposed architecture
 
-See [docs/FEASIBILITY.md](docs/FEASIBILITY.md) for the initial technical assessment, dependency table, constraints, and milestone sequence.
+See [docs/FEASIBILITY.md](docs/FEASIBILITY.md) for the technical assessment, dependency table, constraints, milestone sequence, and the iOS Wine/FEX reference implementation identified during Milestone 3 research. Winios has not copied that project's source; its license model and iOS 26+ device evidence do not establish compatibility with Winios's iOS 15/A9 target.
 
 The app is structured as a UIKit/SwiftUI frontend and orchestrator, a sandboxed import/library layer, then separately integrated native runtime, translation, and rendering modules if an iOS-compatible path is established. The Metal preview demonstrates host presentation only; guest graphics translation is a distinct future capability.
 

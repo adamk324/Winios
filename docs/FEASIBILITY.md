@@ -25,8 +25,8 @@ The present app therefore provides file organization and truthful diagnostics on
 | SwiftUI/UIKit shell | Viable | Implemented in this milestone; macOS CI build pending. |
 | Document picker | Viable | User-selected sandbox import, including folders on iOS 13+; used here for explicit file/folder import. |
 | Metal | Viable for host rendering | Implemented a host test-pattern pipeline, presentation surface, FPS measurement, profile-based drawable scaling, and preferred frame rate. No guest renderer or translation exists. |
-| Wine | Major porting work; not directly usable as a desktop build | Wine targets POSIX systems and depends on Unix services. iOS is Darwin but has materially different process, executable-loading, and sandbox rules. No upstream iOS target was verified. |
-| FEX-Emu | Not directly compatible as published | Upstream project describes itself as an x86/x86-64 emulator for ARM64 Linux and relies on Linux/rootfs behavior. An iOS port would need substantial OS/service/JIT changes. |
+| Wine | Major porting work; not directly usable as a desktop build | Wine upstream lists Linux, FreeBSD, Solaris, NetBSD, and macOS; iOS is not an upstream target. A separate open-source iOS product documents a large Wine port using one host process, but this does not establish iOS 15/A9 compatibility. |
+| FEX-Emu | Not directly compatible as published | Upstream targets ARM64 Linux. The iOS reference product uses a heavily patched FEX port and in-process integration; this is evidence of feasibility on its supported setup, not drop-in compatibility. |
 | Native Windows ARM64 PE | Not a drop-in path | The CPU ISA may match, but iOS cannot simply load and execute arbitrary PE modules. Wine API, loader, ABI, memory, and OS-service work remains. |
 | JIT | Critical policy/platform gate | iOS requires executable memory to satisfy code-signing rules. Apple documents JIT-related entitlements/APIs in scoped contexts; this does not establish that a normal third-party iOS app can obtain the required capability for general emulation. Do not rely on private APIs or entitlement hacks. |
 | OpenGL / GLES | Legacy/limited route | iOS provides legacy OpenGL ES support on this target but it is deprecated; desktop OpenGL compatibility needs a translation implementation and testing. |
@@ -39,12 +39,12 @@ The present app therefore provides file organization and truthful diagnostics on
 - Minimum deployment is set to iOS 15.0 in the Xcode project. UI code avoids iOS 16-only `ContentUnavailableView` and `LabeledContent`.
 - The requested 1 GiB is a design ceiling, not a guaranteed allocation budget. iOS termination thresholds depend on device and system pressure; there is no universal safe per-app limit. Respond to memory warnings and profile on real devices.
 - Current diagnostics sample the process resident footprint using Mach task information and the default Metal device name. They do not estimate free system RAM, graphics allocation, or jetsam thresholds.
-- The three profiles are persisted choices only. They do not imply resource throttling before a runtime exists.
+- The three profiles adjust the host Metal preview's drawable scale and frame-rate cap. They do not tune a Windows runtime or imply broader resource throttling.
 - Future profiles should set explicit working-set and texture ceilings based on device capability, with low-end as the default and cleanup on memory warnings/backgrounding.
 
 ## Wine integration strategy and blockers
 
-Do not compile desktop Wine unchanged and assume it can execute on iOS. First audit loader/PE support, Darwin/iOS build configuration, Mach-O dependencies, Unix syscalls, dynamic libraries, executable-memory requirements, process creation, wineserver IPC, signals/exceptions, filesystem/registry behavior, and the iOS sandbox. Prototype only after a documented path exists. A single-process Wine/server model may be necessary but is not yet demonstrated. No Wine modifications or runtime code have been added.
+Do not compile desktop Wine unchanged and assume it can execute on iOS. First audit loader/PE support, Darwin/iOS build configuration, Mach-O dependencies, Unix syscalls, dynamic libraries, executable-memory requirements, process creation, wineserver IPC, signals/exceptions, filesystem/registry behavior, and the iOS sandbox. A public reference implementation demonstrates a single-process Wine/server model on newer iOS and hardware. No Wine modifications or runtime code have been added to Winios.
 
 ## CPU translation and JIT strategy
 
@@ -64,6 +64,16 @@ Keep host presentation separate from guest API compatibility. Start with an iOS 
 6. **Distribution/legal policy:** assess Apple program rules and distribution channel before promising a general downloadable app execution environment.
 7. **Hardware:** validate memory, thermal behavior, JIT/translation, and input on physical older iPhones. Simulator results cannot establish these.
 
+## Reference implementation discovered (4 November 2026)
+
+[Playport](https://github.com/playportdev/playport) is a public project demonstrating that a Wine/FEX-based Windows runtime can run in one iOS app process. Its [architecture](https://github.com/playportdev/playport/blob/main/docs/ARCHITECTURE.md) describes wineserver as an app thread, Wine Unix-side libraries linked into the app, pseudo-processes for guest programs, and a debugger-provided JIT pool. This resolves the earlier question of whether an iOS adaptation is purely hypothetical: a concrete implementation exists.
+
+It does **not** resolve Winios's stated compatibility target. Playport's [build guide](https://github.com/playportdev/playport/blob/main/docs/BUILDING.md) uses an iOS 26.5 SDK; its [device reference](https://github.com/playportdev/playport/blob/main/docs/DEVICE.md) sets deployment target iOS 26.0 and records a known-good run on an iPhone 18,4 (A19 Pro) with iOS 27.0. It says no iOS 26 device run was known good at that time. It provides no evidence for iOS 15 or A9-generation hardware. Its modern JIT route depends on debugger attachment and device/OS-specific helper behavior.
+
+Directly adopting its source also changes the license review substantially. Playport is GPL-3.0-or-later with an additional permission for its own code, while components retain separate licenses. Winios's original MIT `LICENSE` and attribution must remain. Any source integration needs a reviewed component/license inventory, applicable source and notice obligations, and a distribution plan; no Playport source has been copied into Winios.
+
+The current practical gate is therefore a device/OS feasibility decision, not a fake runtime wrapper: establish whether Winios keeps iOS 15 and A9 as requirements or adopts a newer supported baseline, then prototype JIT and the single-process Wine host on that baseline. The native app continues to target iOS 15 meanwhile.
+
 ## Implemented milestone and validation status
 
 Milestone 1 created the native project, import/library, settings, memory/device diagnostics, basic unit tests, and macOS CI. Milestone 2 adds a host Metal test-pattern surface, frame presentation, FPS reporting, drawable-size scaling per profile, and pause behavior while the Graphics tab is inactive. CI passed simulator and generic-device builds and simulator unit tests. Physical-device behavior, older-device performance, thermal impact, and graphics-memory measurements remain unverified.
@@ -78,3 +88,6 @@ Milestone 1 created the native project, import/library, settings, memory/device 
 - [Apple: memory use and jetsam reports](https://developer.apple.com/documentation/xcode/identifying-high-memory-use-with-jetsam-event-reports).
 - [Apple: accessing user-selected directories](https://developer.apple.com/documentation/uikit/providing-access-to-directories).
 - [Apple Developer Program License Agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/) — executable code and interpreted-code terms; obtain appropriate review before distribution claims.
+- [Playport repository](https://github.com/playportdev/playport) — public implementation reference and its stated testing/distribution setup.
+- [Playport architecture](https://github.com/playportdev/playport/blob/main/docs/ARCHITECTURE.md) — in-process Wine/FEX design and debugger-provided JIT model.
+- [Playport licensing record](https://github.com/playportdev/playport/blob/main/docs/LICENSING.md) — GPL and per-component licensing obligations.
