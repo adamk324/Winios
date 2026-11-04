@@ -37,6 +37,7 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(profile.rawValue, forKey: "performanceProfile") }
     }
     @Published var importError: String?
+    @Published var importNotice: String?
 
     private let indexURL = ImportedApplication.importsDirectory.appendingPathComponent("library.json")
 
@@ -55,15 +56,22 @@ final class AppModel: ObservableObject {
     func importItems(from urls: [URL]) {
         do {
             try FileManager.default.createDirectory(at: ImportedApplication.importsDirectory, withIntermediateDirectories: true)
+            var importedNames: [String] = []
             for source in urls {
                 let scoped = source.startAccessingSecurityScopedResource()
                 defer { if scoped { source.stopAccessingSecurityScopedResource() } }
                 let item = try importItem(from: source)
                 applications.insert(item, at: 0)
+                importedNames.append(item.filename)
             }
             try saveIndex()
             importError = nil
+            if !importedNames.isEmpty {
+                let names = importedNames.joined(separator: ", ")
+                importNotice = "Added \(names) to your Winios library. Windows apps cannot run in this build yet."
+            }
         } catch {
+            importNotice = nil
             importError = error.localizedDescription
         }
     }

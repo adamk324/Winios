@@ -19,11 +19,18 @@ struct ContentView: View {
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .folder], allowsMultipleSelection: true) { result in
             if case .success(let urls) = result { model.importItems(from: urls) }
         }
-        .alert("Import failed", isPresented: Binding(get: { model.importError != nil }, set: { if !$0 { model.importError = nil } })) {
-            Button("OK", role: .cancel) { model.importError = nil }
-        } message: { Text(model.importError ?? "") }
+        .alert(model.importError == nil ? "Added to library" : "Import failed", isPresented: Binding(
+            get: { model.importError != nil || model.importNotice != nil },
+            set: { if !$0 { model.importError = nil; model.importNotice = nil } }
+        )) {
+            Button("OK", role: .cancel) { model.importError = nil; model.importNotice = nil }
+        } message: { Text(model.importError ?? model.importNotice ?? "") }
         .sheet(item: $selectedApplication) { application in
             ApplicationDetailsView(application: application)
+        }
+        .onOpenURL { url in
+            selection = 0
+            model.importItems(from: [url])
         }
     }
 

@@ -10,6 +10,16 @@
 <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>UILaunchScreen</key><dict/>
+<key>LSSupportsOpeningDocumentsInPlace</key><false/>
+<key>UTImportedTypeDeclarations</key><array>
+<dict><key>UTTypeIdentifier</key><string>com.microsoft.windows-executable</string><key>UTTypeDescription</key><string>Windows Executable</string><key>UTTypeConformsTo</key><array><string>public.data</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>exe</string></array></dict></dict>
+<dict><key>UTTypeIdentifier</key><string>com.microsoft.msi-installer</string><key>UTTypeDescription</key><string>Windows Installer Package</string><key>UTTypeConformsTo</key><array><string>public.data</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>msi</string></array></dict></dict>
+</array>
+<key>CFBundleDocumentTypes</key><array>
+<dict><key>CFBundleTypeName</key><string>Windows Executable</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>com.microsoft.windows-executable</string></array><key>CFBundleTypeExtensions</key><array><string>exe</string></array></dict>
+<dict><key>CFBundleTypeName</key><string>Windows Installer Package</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>com.microsoft.msi-installer</string></array><key>CFBundleTypeExtensions</key><array><string>msi</string></array></dict>
+<dict><key>CFBundleTypeName</key><string>ZIP Archive</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>public.zip-archive</string></array><key>CFBundleTypeExtensions</key><array><string>zip</string></array></dict>
+</array>
 <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
 <key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
 <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
