@@ -72,7 +72,11 @@ It does **not** resolve Winios's stated compatibility target. Playport's [build 
 
 Directly adopting its source also changes the license review substantially. Playport is GPL-3.0-or-later with an additional permission for its own code, while components retain separate licenses. Winios's original MIT `LICENSE` and attribution must remain. Any source integration needs a reviewed component/license inventory, applicable source and notice obligations, and a distribution plan; no Playport source has been copied into Winios.
 
-The current practical gate is therefore a device/OS feasibility decision, not a fake runtime wrapper: establish whether Winios keeps iOS 15 and A9 as requirements or adopts a newer supported baseline, then prototype JIT and the single-process Wine host on that baseline. The native app continues to target iOS 15 meanwhile.
+A second relevant project is [Juice](https://github.com/ExoCore-Kernel/Juice), whose maintainers report physical iPad testing of native ARM64 Wine and FEX-translated x86-64 Windows software. Its stated audited device is iPad12,1 on iPadOS 16.6. Juice's own code is MIT and Wine remains LGPL, which is closer to Winios's existing licensing than Playport's GPL base. However, Juice explicitly targets rootless-jailbroken ARM64 devices and requires private entitlements/CoreTrust signing; it also documents exposing host files through Wine's Z: drive. That path is not equivalent to a stock sandboxed app, has no stated iOS 15 or A9 test evidence, and carries a materially different security and distribution model. No Juice source has been copied into Winios.
+
+For context, [UTM SE](https://github.com/utmapp/UTM) provides a JIT-free interpreter-based full-system emulation option for iOS 15, but it is a slower virtual-machine approach intended for older/lightweight guest operating systems. It does not provide Wine's direct Windows application integration and is not a substitute for the desired runtime.
+
+The current practical gate is therefore a device and execution-model feasibility decision, not a fake runtime wrapper: stock iOS has a recent-device precedent, while the closer iOS 16.6 precedent requires a jailbreak. iOS 15 and A9 remain unproven for either runtime. Keep the native app targeting iOS 15 while testing what real devices and execution model are available before selecting a Wine port.
 
 ## Implemented milestone and validation status
 
@@ -91,3 +95,5 @@ Milestone 1 created the native project, import/library, settings, memory/device 
 - [Playport repository](https://github.com/playportdev/playport) — public implementation reference and its stated testing/distribution setup.
 - [Playport architecture](https://github.com/playportdev/playport/blob/main/docs/ARCHITECTURE.md) — in-process Wine/FEX design and debugger-provided JIT model.
 - [Playport licensing record](https://github.com/playportdev/playport/blob/main/docs/LICENSING.md) — GPL and per-component licensing obligations.
+- [Juice repository](https://github.com/ExoCore-Kernel/Juice) — Wine/FEX app with reported on-device executable tests, MIT project code, and a jailbreak/private-entitlement target.
+- [UTM SE](https://github.com/utmapp/UTM) — iOS 15-capable interpreter-based full-system emulation alternative.
