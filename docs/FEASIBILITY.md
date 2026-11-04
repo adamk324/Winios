@@ -97,3 +97,15 @@ Milestone 1 created the native project, import/library, settings, memory/device 
 - [Playport licensing record](https://github.com/playportdev/playport/blob/main/docs/LICENSING.md) — GPL and per-component licensing obligations.
 - [Juice repository](https://github.com/ExoCore-Kernel/Juice) — Wine/FEX app with reported on-device executable tests, MIT project code, and a jailbreak/private-entitlement target.
 - [UTM SE](https://github.com/utmapp/UTM) — iOS 15-capable interpreter-based full-system emulation alternative.
+
+## Milestone 3 follow-up — runtime integration gate (4 November 2026)
+
+The current Wine-on-iOS reference landscape has advanced, but it still does not establish a runtime that can be dropped into Winios's iOS 15 build:
+
+- [Juice](https://github.com/ExoCore-Kernel/Juice) now documents a full in-process Wine 11.13 port, native ARM64 PE execution, FEX x86-64, optional i386/WoW64, persistent prefixes, and MSI/setup handling. Its verified device is a rootless-jailbroken iPad12,1 on iPadOS 16.6. Its own build instructions require TrollStore, a rootless jailbreak, private entitlements, and a CoreTrust signing workflow. The project does not claim iOS 15 support. This makes Juice the closest technical reference for a runtime implementation, but does not prove it can run on this project's iOS 15 device or distribution setup.
+- [Playport](https://github.com/playportdev/playport) now reports a much broader Wine/FEX runtime, but its README specifies iOS 26 or later and debugger-attached JIT. Its GPL-3.0 licensing and extensive runtime patches require a separate integration/license review; it is not a compatible drop-in for this iOS 15 target.
+- [Madeira](https://github.com/majd/madeira) likewise specifies iOS 26 or later and JIT, with a separate Wine/FEX/DXMT stack. Its supported OS range excludes this target.
+
+**Milestone 3 implementation decision:** do not vendor a large Wine/FEX tree or claim executable launch support yet. The user's TrollStore/JIT setup addresses installation and code-translation capability only if the OS and signing path permit it; it does not establish the rootless-jailbreak/private-entitlement environment required by Juice. First build a source-level compatibility matrix for Juice against iOS 15 SDK/API availability and determine whether the target device is rootless-jailbroken. Then create a minimal Wine initialization proof and a real ARM64 PE smoke test on that device. Keep any future runtime as a separately licensed native target so the existing MIT app foundation remains intact.
+
+The current code change addresses a separate import usability issue: in-app selection now uses the system's broad item/folder picker types, accepts one selection per picker session so tapping an item immediately returns to Winios, and validates the extension after the URL is received. Unit tests cover the extension policy. This is import behavior only; it does not launch the selected PE file.

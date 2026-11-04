@@ -6,6 +6,14 @@ final class WiniosTests: XCTestCase {
         XCTAssertEqual(Set(PerformanceProfile.allCases.map(\.rawValue)), Set(["Low-End", "Balanced", "Performance"]))
     }
 
+    func testImportPolicyAcceptsSupportedExtensionsAndFolders() {
+        XCTAssertTrue(ImportPolicy.supports(fileExtension: "EXE", isDirectory: false))
+        XCTAssertTrue(ImportPolicy.supports(fileExtension: "msi", isDirectory: false))
+        XCTAssertTrue(ImportPolicy.supports(fileExtension: "zip", isDirectory: false))
+        XCTAssertTrue(ImportPolicy.supports(fileExtension: "", isDirectory: true))
+        XCTAssertFalse(ImportPolicy.supports(fileExtension: "dmg", isDirectory: false))
+    }
+
     func testImportedApplicationEncodesAndDecodes() throws {
         let item = ImportedApplication(id: UUID(), name: "Setup", filename: "setup.exe", relativePath: "abc-setup.exe", importedAt: Date(timeIntervalSince1970: 10))
         let decoded = try JSONDecoder().decode(ImportedApplication.self, from: JSONEncoder().encode(item))

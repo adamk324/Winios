@@ -16,7 +16,7 @@ struct ContentView: View {
             diagnostics.tag(2).tabItem { Label("Graphics", systemImage: "waveform.path.ecg") }
         }
         .tint(.indigo)
-        .fileImporter(isPresented: $showingImporter, allowedContentTypes: importableContentTypes, allowsMultipleSelection: true) { result in
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item, .folder], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let urls):
                 model.importItems(from: urls)
@@ -39,15 +39,6 @@ struct ContentView: View {
             selection = 0
             model.importItems(from: [url])
         }
-    }
-
-    private var importableContentTypes: [UTType] {
-        [
-            UTType("com.microsoft.windows-executable") ?? UTType(filenameExtension: "exe") ?? .data,
-            UTType("com.adamk324.winios.msi") ?? UTType(filenameExtension: "msi") ?? .data,
-            UTType("public.zip-archive") ?? UTType(filenameExtension: "zip") ?? .archive,
-            .folder
-        ]
     }
 
     private var library: some View {

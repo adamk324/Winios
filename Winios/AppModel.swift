@@ -30,6 +30,12 @@ enum PerformanceProfile: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum ImportPolicy {
+    static func supports(fileExtension: String, isDirectory: Bool) -> Bool {
+        isDirectory || ["exe", "msi", "zip"].contains(fileExtension.lowercased())
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var applications: [ImportedApplication] = []
@@ -95,7 +101,7 @@ final class AppModel: ObservableObject {
             result = Result {
                 let ext = coordinatedURL.pathExtension.lowercased()
                 let isDirectory = try coordinatedURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true
-                guard ["exe", "msi", "zip"].contains(ext) || isDirectory else {
+                guard ImportPolicy.supports(fileExtension: ext, isDirectory: isDirectory) else {
                     throw ImportFailure.unsupported(coordinatedURL.lastPathComponent)
                 }
                 let architecture = ext == "exe" ? try? PEFileInspector.architecture(of: coordinatedURL) : nil

@@ -20,7 +20,7 @@ The app currently does not request or use JIT and does not include Wine or a Win
 
 ## Current functionality
 
-- Imports EXE, MSI, ZIP, and folder selections using the system file importer.
+- Imports one EXE, MSI, ZIP, or folder at a time through the system file importer. Selecting one item immediately returns it to Winios; the extension is validated after selection.
 - Registers EXE, MSI, and ZIP document types so choosing Winios from Files can import the selected item into the library; picker failures are surfaced to the user.
 - Reads bounded DOS/PE headers for imported EXE files and displays the machine architecture when recognized; no executable content is loaded or run.
 - Tapping a library item opens a details sheet with its file type, PE architecture, and actual runtime availability; diagnostic details can be copied.
