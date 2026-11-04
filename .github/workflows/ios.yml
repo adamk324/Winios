@@ -1,0 +1,43 @@
+name: iOS Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Report toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          xcrun simctl list devices available
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project Winios.xcodeproj -scheme Winios
+      - name: Prepare build output
+        run: mkdir -p build
+      - name: Build iOS Simulator
+        run: xcodebuild -project Winios.xcodeproj -scheme Winios -destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/simulator-build.log
+      - name: Build generic iOS device
+        run: xcodebuild -project Winios.xcodeproj -scheme Winios -destination 'generic/platform=iOS' -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/device-build.log
+      - name: Run simulator tests
+        run: |
+          SIMULATOR_ID="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ && /Shutdown|Booted/ { print $2; exit }')"
+          test -n "$SIMULATOR_ID"
+          xcodebuild -project Winios.xcodeproj -scheme Winios -destination "id=$SIMULATOR_ID" -derivedDataPath build/DerivedData -resultBundlePath build/WiniosTests.xcresult CODE_SIGNING_ALLOWED=NO test 2>&1 | tee build/test.log
+      - name: Upload build results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: winios-${{ github.sha }}-ios-build-results
+          path: |
+            build/*.log
+            build/WiniosTests.xcresult
+            build/DerivedData/Build/Products/Debug-iphonesimulator/Winios.app
+          if-no-files-found: warn
